@@ -24,7 +24,7 @@ class Particle{
 
 // all in fm so 1e-15
 
-double* particleSpawn(string PID, double avgR, double avgP);
+double* particleSpawn(Particle nucleus, string PID, double avgR, double avgP);
 
 double crossSection(double energy);
 
@@ -58,27 +58,43 @@ double searchMass(string PID);
 
 double framePoly(double x, double c[5]);
 
+int aFinder(Particle p);
+
+int zFinder(Particle p);
+
+double Rp(Particle p);
+
+double Rn(Particle p);
+
 int main(){
 
 	srand(time(NULL));
+
+	Particle projectile; 
+
+	Particle target;
+
+	double energy;
+
+	// init bMax and stepSize
 	
-	double bMax = 3.19848732601 - 0.8;
+	double bMax = Rp(projectile) - 0.8;
+	double stepSize = Rn(projectile) / 2.5;
 
+	/*********************************************************/
+	
 	double impactParam = bMax * ((double) rand()) / (RAND_MAX);
-	double stepSize = 3.32236936788 / 2.5;
 	int i;
-
-	double mass = 12 * 931.49410242; // mass of carbon atom
-
-	double energy = 200 * 12; // KE of carbon atom
+	int j = 0;
+	double mass = projectile.mass; // mass of projectile nucleus
 
 	double labP = mass * sqrt(pow((energy / mass), 2) + (2 * energy / mass));
 
 	// com momenta conversion
 	
 	double u = vel(labP, mass); // lab frame particle vel [c]
-	double m1 = 12;             // mass of particle [MeV/c^2]
-	double m2 = 12;             // mass of target [MeV/c^2]
+	double m1 = projectile.mass;             // mass of particle [MeV/c^2]
+	double m2 = target.mass;             // mass of target [MeV/c^2]
 	double M = pow((m1 / m2), 2);
 
 	double c[5]; // constants of polynomial
@@ -111,27 +127,42 @@ int main(){
 
 	double* tempResults;
 
-	Particle nuc1[12];
+	Particle *nuc1 = new Particle(aFinder(projectile));
+	Particle *nuc2 = new Particle(aFinder(target));
 
-	Particle nuc2[12];
+	// init nuc1
+	
+	for (i = 0; i < zFinder(projectile); i++){
 
-	for (i = 0; i <= 5; i++){
 		nuc1[i].PID = "2212";
-		nuc2[i].PID = "2212";
-		nuc1[i].mass = 939.57; // MeV/c^2
-		nuc2[i].mass = 939.57; // MeV/c^2
+		nuc1[i].mass = 938.27;
+
 	}
 
-	for (i = 6; i <= 11; i++){
+	for (i = zFinder(projectile); i < aFinder(projectile); i++){
+
 		nuc1[i].PID = "2112";
+		nuc1[i].mass = 939.57;
+	}
+
+	// init nuc2
+
+	for (i = 0; i < zFinder(target); i++){
+
+		nuc2[i].PID = "2212";
+		nuc2[i].mass = 938.27;
+
+	}
+
+	for (i = zFinder(target); i < aFinder(target); i++){
+
 		nuc2[i].PID = "2112";
-		nuc1[i].mass = 938.28; // MeV/c^2
-		nuc2[i].mass = 938.28; // MeV/c^2
+		nuc2[i].mass = 939.57;
 	}
 
 
-	for (i = 0; i <= 11; i++){
-		tempResults = particleSpawn(nuc1[i].PID, comR, comPProjectile);
+	for (i = 0; i < (sizeof(nuc1) / sizeof(Particle)); i++){
+		tempResults = particleSpawn(projectile, nuc1[i].PID, comR, comPProjectile);
 
 		nuc1[i].xCord = tempResults[0];
 		nuc1[i].yCord = tempResults[1];
@@ -141,8 +172,8 @@ int main(){
 		nuc1[i].zMom = tempResults[5];
 	}
 
-	for (i = 0; i <= 11; i++){
-		tempResults = particleSpawn(nuc2[i].PID, comR, comPTarget);
+	for (i = 0; i < (sizeof(nuc2) / sizeof(Particle)); i++){
+		tempResults = particleSpawn(target, nuc2[i].PID, comR, comPTarget);
 
 		nuc2[i].xCord = tempResults[0];
 		nuc2[i].yCord = tempResults[1];
@@ -153,35 +184,38 @@ int main(){
 	}
 
 	// change to COM Frame
-	for (i = 0; i <= 11; i++){
+	
+	for (i = 0; i < (sizeof(nuc1) / sizeof(Particle)); i++){
 		nuc1[i].yCord += (impactParam / 2);
 		nuc1[i].zCord -= (5 * stepSize / 2);
+	}
 
+	for (i = 0; i < (sizeof(nuc2) / sizeof(Particle)); i++){
 		nuc2[i].yCord -= (impactParam / 2);
 		nuc2[i].zCord += (5 * stepSize / 2);
 	}
 
 	// Collision Work
 	// Init Field/Coll System
-	Particle sys[24];
+	int count = (sizeof(nuc1) + sizeof(nuc2)) / sizeof(Particle);
 
-	int j = 0;
+	Particle *sys = new Particle(count);
 
-	for (i = 0; i <= 11; i++){
+	for (i = 0; i < (sizeof(nuc1) / sizeof(Particle)); i++){
 		sys[i] = nuc1[i];
-		j = i + 12;
-		sys[j] = nuc2[i];
 	}
 
-	int count = sizeof(sys) / sizeof(Particle);
+	for (i = (sizeof(nuc1) / sizeof(Particle)); i < count; i++){
+		sys[i] = nuc2[i];
+	}
 
 	// step 1: Mean Field Movement
 	//
 	
-	Particle tempSet1[24];
-	Particle tempSet2[24];
+	Particle *tempSet1 = new Particle(count);
+	Particle *tempSet2 = new Particle(count);
 
-	double h = 1e-6;
+	h = 1e-6;
 	double pXDot = 0.0;
 	double pYDot = 0.0;
 	double pZDot = 0.0;
@@ -565,6 +599,12 @@ int main(){
 		fragList[i].zMom = pow(invRelMass, -1) * pZSum / totMass;
 	}
 
+	for (i = 0; i < fragList.size(); i++){
+		if ((sizeof(fragList[i].PID)/sizeof(string)) == 10){
+			fragList[i].mass = searchMass(fragList[i].PID);
+		}
+	}
+
 	// Conversion from COM Space to Lab Space Momenta
 	double tempVelocity;
 
@@ -586,16 +626,16 @@ int main(){
 }
 
 
-double* particleSpawn(string PID, double avgR, double avgP){
+double* particleSpawn(Particle nucleus, string PID, double avgR, double avgP){
 
 	static double values[6];
 
 	double width = 1.7;// fm
 
 	if (PID == "2112")
-		width = 3.32236936788 - 0.8;
+		width = Rn(nucleus) - 0.8;
 	else
-		width = 3.19848732601 - 0.8;
+		width = Rp(nucleus) - 0.8;
 
 	double hBar = 1.05471817e-34; //Js
 	double pi = 3.141592653;
@@ -941,3 +981,61 @@ double framePoly(double x, double c[5]){
 
 	return value;
 }
+
+
+int aFinder(Particle p){
+
+	int tens = ((int) p.PID[4]) - ((int) '0');
+	int ones = ((int) p.PID[5]) - ((int) '0');
+
+	int A = tens * 10 + ones;
+
+	return A;
+
+}
+
+int zFinder(Particle p){
+
+	int tens = ((int) p.PID[7]) - ((int) '0');
+	int ones = ((int) p.PID[8]) - ((int) '0');
+
+	int Z = tens * 10 + ones;
+
+	return Z;
+
+}
+
+double Rp(Particle p){
+
+	double A = (double) aFinder(p);
+	double Z = (double) zFinder(p);
+	double I = (A - 2 * Z) / A;
+
+	double BE = (p.mass - A * 931) / 931;
+
+	double Rc = 1.266 * pow(A, (1/3)) + 2.86 * pow(A, (-2/3)) - 1.09 * (I - pow(I, 2)) + 0.99 * BE / A;
+	double delRNP = 0.9 * I - 0.03;
+	double rC = Rc * sqrt(3/5);
+	double rP = sqrt((5/3)*(pow(rC, 2) - 0.64));
+
+	return rP;
+}
+
+double Rn(Particle p){
+
+	double A = (double) aFinder(p);
+	double Z = (double) zFinder(p);
+	double I = (A - 2 * Z) / A;
+
+	double BE = (p.mass - A * 931) / 931;
+
+	double Rc = 1.266 * pow(A, (1/3)) + 2.86 * pow(A, (-2/3)) - 1.09 * (I - pow(I, 2)) + 0.99 * BE / A;
+	double delRNP = 0.9 * I - 0.03;
+	double rC = Rc * sqrt(3/5);
+	double rN = sqrt(5/3) * (rC + delRNP);
+
+	return rN;
+}
+
+
+
