@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 using namespace std;
 
 class Particle{
@@ -53,6 +54,10 @@ int R(Particle p1, Particle p2);
 
 int P(Particle p1, Particle p2);
 
+double searchMass(string PID);
+
+double framePoly(double x, double c[5]);
+
 int main(){
 
 	srand(time(NULL));
@@ -69,8 +74,38 @@ int main(){
 
 	double labP = mass * sqrt(pow((energy / mass), 2) + (2 * energy / mass));
 
-	double comPProjectile = -1 * labP / 2;
-	double comPTarget = labP / 2;
+	// com momenta conversion
+	
+	double u = vel(labP, mass); // lab frame particle vel [c]
+	double m1 = 12;             // mass of particle [MeV/c^2]
+	double m2 = 12;             // mass of target [MeV/c^2]
+	double M = pow((m1 / m2), 2);
+
+	double c[5]; // constants of polynomial
+	c[0] = pow(u, 2) + 1 - M;
+	c[1] = (2 - M) * 2 * u;
+	c[2] = (1 - pow(u, 2)) * (1 - M);
+	c[3] = 2 * M * u;
+	c[4] = M * pow(u, 2);
+
+	double comStepSize = 0.00001;
+	double left = comStepSize;
+	double right = left + comStepSize;
+
+	while((abs(framePoly(left, c)) / framePoly(left, c)) == (abs(framePoly(right, c)) / framePoly(right, c))){
+		left = right;
+		right = left + comStepSize;
+	}
+
+	double comVelocity = (left + right) / 2; // supposed to be negative in axes used, will make neg later
+
+	double particleCOMZVelocity = -1 * (u - comVelocity) / (1 - u * comVelocity);
+	double targetCOMZVelocity = -1 * particleCOMZVelocity;
+
+	double comPProjectile = mass * particleCOMZVelocity / sqrt(1 - pow(particleCOMZVelocity, 2)); 
+	double comPTarget = mass * targetCOMZVelocity / sqrt(1 - pow(targetCOMZVelocity, 2)); 
+
+	comVelocity = -1 * comVelocity;
 
 	double comR = 0.0;
 
@@ -530,6 +565,15 @@ int main(){
 		fragList[i].zMom = pow(invRelMass, -1) * pZSum / totMass;
 	}
 
+	// Conversion from COM Space to Lab Space Momenta
+	double tempVelocity;
+
+	for (i = 0; i < fragList.size(); i++){
+		tempVelocity = vel(fragList[i].zMom, fragList[i].mass);
+		tempVelocity = (tempVelocity + comVelocity) / (1 + tempVelocity * comVelocity);
+		fragList[i].zMom = fragList[i].mass * tempVelocity / sqrt(1 - pow(tempVelocity, 2));
+	}
+
 	for (i = 0; i < fragList.size(); i++){
 		cout << "Fragment " << i + 1 << ": " << fragList[i].PID << endl;
 		cout << "\tPosition: (" << fragList[i].xCord << ", " << fragList[i].yCord << ", " << fragList[i].zCord << ")" << endl;
@@ -856,4 +900,44 @@ int P(Particle p1, Particle p2){
 	else{
 		return 0;
 	}
+}
+
+double searchMass(string PID){
+
+	double mass;
+	string tempPID;
+	string line;
+	int curLine = 0;
+	int searchLine = 0;
+
+	ifstream fin;
+
+	fin.open("iMass.txt");
+
+	while(getline(fin, line)){
+		curLine++;
+		if(line.find(PID, 0) != string::npos){
+			searchLine = curLine;
+		}
+	}
+
+	fin.close();
+
+	fin.open("iMass.txt");
+
+	for(int i = 0; i < searchLine; i++){
+		fin >> tempPID >> mass;
+	}
+
+	fin.close();
+
+
+	return mass;
+}
+
+double framePoly(double x, double c[5]){
+
+	double value = c[0] * pow(x, 4) - c[1] * pow(x, 3) + c[2] * pow(x, 2) + c[3] * x - c[4];
+
+	return value;
 }
