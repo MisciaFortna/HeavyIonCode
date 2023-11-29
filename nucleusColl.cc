@@ -29,7 +29,7 @@ double crossSection(double energy);
 
 int finder(int el, vector<int> listSet);
 
-double vel(double p); // given in units of c
+double vel(double p, double m); // given in units of c
 
 void coll(Particle &nuc1, Particle &nuc2);
 
@@ -265,12 +265,15 @@ int main(){
 	// Frag Identification
 	vector<vector<int>> fragSet; // sets of fragments (based on elements of sys)
 	vector<int> pairList; // elements of sys
+	vector<int> tempList;
 
 	// Identification of initial frag (sys[0])
 	pairList.insert(pairList.begin(), 0);
 
 	int tempCounter = 1;
 	int tempCounter2 = 1;
+	int tempPCounter = 0;
+	int tempNCounter = 0;
 
 	for(i = 1; i < count; i++){
 		if (R(sys[0], sys[i]) && P(sys[0], sys[i])){
@@ -278,9 +281,30 @@ int main(){
 		}
 	}
 
-	fragSet.insert(fragSet.begin(), pairList);
+	for (i = 0; i < pairList.size(); i++){
+		if(sys[pairList[i]].PID == "2112"){
+			tempNCounter++;
+		}
+		else{
+			tempPCounter++;
+		}
+	}
+
+	if (((tempNCounter == 0) && (tempNCounter != 0)) || ((tempNCounter != 0) && (tempPCounter == 0))){
+		for (i = 0; i < pairList.size(); i++){
+			tempList.insert(tempList.begin(), pairList[i]);
+			fragSet.insert(fragSet.end(), tempList);
+			tempList.clear();
+		}
+	}
+
+	else{
+		fragSet.insert(fragSet.begin(), pairList);
+	}
 
 	pairList.clear();
+	tempPCounter = 0;
+	tempNCounter = 0;
 
 	for (i = 1; i < (count - 2); i++){
 		for (j = 0; j < fragSet.size(); j++){
@@ -309,8 +333,30 @@ int main(){
 
 				tempCounter2 = 1;
 			}
-			fragSet.insert(fragSet.end(), pairList);
+
+			for (i = 0; i < pairList.size(); i++){
+				if(sys[pairList[i]].PID == "2112"){
+					tempNCounter++;
+				}
+				else{
+					tempPCounter++;
+				}
+			}
+
+			if (((tempNCounter == 0) && (tempNCounter != 0)) || ((tempNCounter != 0) && (tempPCounter == 0))){
+				for (i = 0; i < pairList.size(); i++){
+					tempList.insert(tempList.begin(), pairList[i]);
+					fragSet.insert(fragSet.end(), tempList);
+					tempList.clear();
+				}
+			}
+			else{
+				fragSet.insert(fragSet.end(), pairList);
+			}
+
 			pairList.clear();
+			tempPCounter = 0;
+			tempNCounter = 0;
 		}
 		tempCounter = 1;
 	}
@@ -335,7 +381,29 @@ int main(){
 		if (R(sys[count - 2], sys[count - 1]) && P(sys[count - 2], sys[count - 1])){
 			pairList.insert(pairList.begin(), count - 2);
 			pairList.insert(pairList.end(), count - 1);
-			fragSet.insert(fragSet.end(), pairList);
+
+			for (i = 0; i < pairList.size(); i++){
+				if(sys[pairList[i]].PID == "2112"){
+					tempNCounter++;
+				}
+				else{
+					tempPCounter++;
+				}
+			}
+
+			if (((tempNCounter == 0) && (tempNCounter != 0)) || ((tempNCounter != 0) && (tempPCounter == 0))){
+				for (i = 0; i < pairList.size(); i++){
+					tempList.insert(tempList.begin(), pairList[i]);
+					fragSet.insert(fragSet.end(), tempList);
+					tempList.clear();
+				}
+			}
+			else{
+				fragSet.insert(fragSet.end(), pairList);
+			}
+
+			tempNCounter = 0;
+			tempPCounter = 0;
 			pairList.clear();
 		}
 
@@ -343,6 +411,7 @@ int main(){
 			pairList.insert(pairList.begin(), count - 2);
 			fragSet.insert(fragSet.end(), pairList);
 			pairList.clear();
+
 			pairList.insert(pairList.end(), count - 1);
 			fragSet.insert(fragSet.end(), pairList);
 			pairList.clear();
