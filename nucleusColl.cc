@@ -6,75 +6,87 @@
 #include <vector>
 #include <algorithm>
 #include <fstream>
+#include "particle.h"
 using namespace std;
-
-class Particle{
-	public:
-		string PID = "0";
-		double mass = 0.0;
-		double xCord = 0.0;
-		double yCord = 0.0;
-		double zCord = 0.0;
-
-		double xMom = 0.0;
-		double yMom = 0.0;
-		double zMom = 0.0;
-};
 
 
 // all in fm so 1e-15
 
-double* particleSpawn(Particle nucleus, string PID, double avgR, double avgP);
-
-double crossSection(double energy);
-
-int finder(int el, vector<int> listSet);
-
-double vel(double p, double m); // given in units of c
-
-void coll(Particle &nuc1, Particle &nuc2);
-
-void dispLog(int counter, Particle sys[], int time);
-
-double distance(Particle p1, Particle p2);
-
-double dHalf(Particle p1, Particle p2);
-
-double dubU(Particle p1, Particle p2);
-
-double tripU(Particle p1, Particle p2, Particle p3);
-
-double U(int count, Particle set[]);
-
-void readout(Particle p);
-
-int elChecker(vector<int> v, int x);
-
-int R(Particle p1, Particle p2);
-
-int P(Particle p1, Particle p2);
-
-double searchMass(string PID);
-
-double framePoly(double x, double c[5]);
-
-int aFinder(Particle p);
-
-int zFinder(Particle p);
-
-double Rp(Particle p);
-
-double Rn(Particle p);
-
-int main(){
+vector<Particle> nuColl(Particle projectile, string targetPID){
 
 	srand(time(NULL));
 
-	Particle projectile; 
+	int i;
+	int j;
 
 	Particle target;
 
-	double energy;
+	target.PID = targetPID;
+
+	vector<double> labPositions(3);
+
+	vector<vector<double>> rotator(3);
+	vector<vector<double>> antirotator(3);
+        vector<double> rotationRow(3);
+	vector<double> tempMom(3);
+
+	double initialRad = sqrt(pow(projectile.xMom, 2) + pow(projectile.yMom, 2) + pow(projectile.zMom, 2));
+
+	labPositions[0] = projectile.xCord;
+	labPositions[1] = projectile.yCord;
+	labPositions[2] = projectile.zCord;
+
+
+	rotationRow[0] = projectile.xMom / initialRad;
+	rotationRow[1] = projectile.yMom / initialRad;
+	rotationRow[2] = projectile.zMom / initialRad;
+		    
+	rotator[2] = rotationRow;
+		        
+	double aleph = 1 - pow(rotator[2][2], 2);
+			    
+	rotationRow[0] = rotator[2][1] * sqrt(aleph) + rotator[2][1] * pow(rotator[2][2], 2) / sqrt(aleph);
+			        
+	rotationRow[1] = -1 * rotator[2][0] * sqrt(aleph) - rotator[2][0] * pow(rotator[2][2], 2) / sqrt(aleph);
+				    
+	rotationRow[2] = 0;
+				        
+	rotator[1] = rotationRow;
+					    
+	rotationRow[0] = -1 * rotator[2][0] * rotator[2][2] / sqrt(aleph);
+					        
+	rotationRow[1] = -1 * rotator[2][1] * rotator[2][2] / sqrt(aleph);
+						    
+	rotationRow[2] = sqrt(aleph);
+						        
+	rotator[0] = rotationRow;
+							    
+	for (i = 0; i < 3; i++){
+
+		for (j = 0; j < 3; j++){
+		        rotationRow[j] = rotator[j][i];
+	        }
+
+	        antirotator[i] = rotationRow;
+	}
+
+	for(i = 0; i < 3; i++){
+		tempMom[i] = rotator[i][0] * projectile.xMom + rotator[i][1] * projectile.yMom + rotator[i][2] * projectile.zMom;
+	}
+	     
+	for (i = 0; i < 3; i++){
+
+		if (abs(tempMom[i]) < 1e-5){
+	 	       tempMom[i] = 0.0;
+	        }
+	}
+
+	projectile.xMom = tempMom[0];
+	projectile.yMom = tempMom[1];
+	projectile.zMom = -1 * tempMom[2];
+
+	double labP = projectile.zMom;
+
 
 	// init bMax and stepSize
 	
@@ -84,17 +96,14 @@ int main(){
 	/*********************************************************/
 	
 	double impactParam = bMax * ((double) rand()) / (RAND_MAX);
-	int i;
-	int j = 0;
-	double mass = projectile.mass; // mass of projectile nucleus
+	double mass = projectile.getMass(); // mass of projectile nucleus
 
-	double labP = mass * sqrt(pow((energy / mass), 2) + (2 * energy / mass));
 
 	// com momenta conversion
 	
 	double u = vel(labP, mass); // lab frame particle vel [c]
-	double m1 = projectile.mass;             // mass of particle [MeV/c^2]
-	double m2 = target.mass;             // mass of target [MeV/c^2]
+	double m1 = projectile.getMass();             // mass of particle [MeV/c^2]
+	double m2 = target.getMass();             // mass of target [MeV/c^2]
 	double M = pow((m1 / m2), 2);
 
 	double c[5]; // constants of polynomial
@@ -135,14 +144,12 @@ int main(){
 	for (i = 0; i < zFinder(projectile); i++){
 
 		nuc1[i].PID = "2212";
-		nuc1[i].mass = 938.27;
 
 	}
 
 	for (i = zFinder(projectile); i < aFinder(projectile); i++){
 
 		nuc1[i].PID = "2112";
-		nuc1[i].mass = 939.57;
 	}
 
 	// init nuc2
@@ -150,14 +157,12 @@ int main(){
 	for (i = 0; i < zFinder(target); i++){
 
 		nuc2[i].PID = "2212";
-		nuc2[i].mass = 938.27;
 
 	}
 
 	for (i = zFinder(target); i < aFinder(target); i++){
 
 		nuc2[i].PID = "2112";
-		nuc2[i].mass = 939.57;
 	}
 
 
@@ -262,13 +267,13 @@ int main(){
 
 	for (i = 0; i < (count); i++){
 
-		sys[i].xCord += stepSize * sys[i].xMom / sqrt(pow(sys[i].mass, 2) + pow(sys[i].xMom, 2));
+		sys[i].xCord += stepSize * sys[i].xMom / sqrt(pow(sys[i].getMass(), 2) + pow(sys[i].xMom, 2));
 		sys[i].xMom = tempSet2[i].xMom;
 
-		sys[i].yCord += stepSize * sys[i].yMom / sqrt(pow(sys[i].mass, 2) + pow(sys[i].yMom, 2));
+		sys[i].yCord += stepSize * sys[i].yMom / sqrt(pow(sys[i].getMass(), 2) + pow(sys[i].yMom, 2));
 		sys[i].yMom = tempSet2[i].yMom;
 
-		sys[i].zCord += stepSize * sys[i].zMom / sqrt(pow(sys[i].mass, 2) + pow(sys[i].zMom, 2));
+		sys[i].zCord += stepSize * sys[i].zMom / sqrt(pow(sys[i].getMass(), 2) + pow(sys[i].zMom, 2));
 		sys[i].zMom = tempSet2[i].zMom;
 	}
 /*
@@ -511,7 +516,7 @@ int main(){
 	for (i = 0; i < setSize; i++){
 		if (fragSet[i].size() == 1){
 			fragList[i].PID = sys[fragSet[i][0]].PID;
-			fragList[i].mass = sys[fragSet[i][0]].mass;
+			//fragList[i].mass = sys[fragSet[i][0]].mass;
 		}
 		else{
 			nCounter = 0;
@@ -579,11 +584,11 @@ int main(){
 
 		for (j = 0; j < fragSet[i].size(); j++){
 			fragIndex = fragSet[i][j];
-			totMass += sys[fragIndex].mass;
-			invRelMass += pow(sys[fragIndex].mass, -1);
-			xSum += (sys[fragIndex].mass * sys[fragIndex].xCord);
-			ySum += (sys[fragIndex].mass * sys[fragIndex].yCord);
-			zSum += (sys[fragIndex].mass * sys[fragIndex].zCord);
+			totMass += sys[fragIndex].getMass();
+			invRelMass += pow(sys[fragIndex].getMass(), -1);
+			xSum += (sys[fragIndex].getMass() * sys[fragIndex].xCord);
+			ySum += (sys[fragIndex].getMass() * sys[fragIndex].yCord);
+			zSum += (sys[fragIndex].getMass() * sys[fragIndex].zCord);
 
 			pXSum += sys[fragIndex].xMom;
 			pYSum += sys[fragIndex].yMom;
@@ -599,30 +604,43 @@ int main(){
 		fragList[i].zMom = pow(invRelMass, -1) * pZSum / totMass;
 	}
 
-	for (i = 0; i < fragList.size(); i++){
-		if ((sizeof(fragList[i].PID)/sizeof(string)) == 10){
-			fragList[i].mass = searchMass(fragList[i].PID);
-		}
-	}
-
 	// Conversion from COM Space to Lab Space Momenta
 	double tempVelocity;
 
 	for (i = 0; i < fragList.size(); i++){
-		tempVelocity = vel(fragList[i].zMom, fragList[i].mass);
+		tempVelocity = vel(fragList[i].zMom, fragList[i].getMass());
 		tempVelocity = (tempVelocity + comVelocity) / (1 + tempVelocity * comVelocity);
-		fragList[i].zMom = fragList[i].mass * tempVelocity / sqrt(1 - pow(tempVelocity, 2));
+		fragList[i].zMom = fragList[i].getMass() * tempVelocity / sqrt(1 - pow(tempVelocity, 2));
 	}
 
+	// convert back to lab frame
+
+	for (i = 0; i < fragList.size(); i++){
+
+		fragList[i].xCord = labPositions[0];
+		fragList[i].yCord = labPositions[1];
+		fragList[i].zCord = labPositions[2];
+		fragList[i].zMom = -1 * fragList[i].zMom;
+
+		for(i = 0; i < 3; i++){
+			tempMom[i] = antirotator[i][0] * fragList[i].xMom + antirotator[i][1] * fragList[i].yMom + antirotator[i][2] * fragList[i].zMom;
+		}
+		    
+		fragList[i].xMom = tempMom[0];
+		fragList[i].yMom = tempMom[1];
+		fragList[i].zMom = tempMom[2];
+
+	}
+/*
 	for (i = 0; i < fragList.size(); i++){
 		cout << "Fragment " << i + 1 << ": " << fragList[i].PID << endl;
 		cout << "\tPosition: (" << fragList[i].xCord << ", " << fragList[i].yCord << ", " << fragList[i].zCord << ")" << endl;
 		cout << "\tMomentum: (" << fragList[i].xMom << ", " << fragList[i].yMom << ", " << fragList[i].zMom << ")" << endl;
 		cout << endl;
-	}
+	} **/
 
 
-	return 0;
+	return fragList;
 }
 
 
@@ -731,7 +749,7 @@ double vel(double p, double m){ // vel in units of c
 }
 
 void coll(Particle &nuc1, Particle &nuc2){
-	double mEff = 1 / ((1 / nuc1.mass) + (1 / nuc2.mass));
+	double mEff = 1 / ((1 / nuc1.getMass()) + (1 / nuc2.getMass()));
 
 	double r1 = sqrt(pow(nuc1.xCord, 2) + pow(nuc1.yCord, 2) + pow(nuc1.zCord, 2));
 	double r2 = sqrt(pow(nuc2.xCord, 2) + pow(nuc2.yCord, 2) + pow(nuc2.zCord, 2));
@@ -742,8 +760,8 @@ void coll(Particle &nuc1, Particle &nuc2){
 	n[1] = (nuc2.yCord - nuc1.yCord) / denom;
 	n[2] = (nuc2.zCord - nuc1.zCord) / denom;
 
-	vector<double> v1{vel(nuc1.xMom, nuc1.mass), vel(nuc1.yMom, nuc1.mass), vel(nuc1.zMom, nuc1.mass)};
-	vector<double> v2{vel(nuc2.xMom, nuc2.mass), vel(nuc2.yMom, nuc2.mass), vel(nuc2.zMom, nuc2.mass)};
+	vector<double> v1{vel(nuc1.xMom, nuc1.getMass()), vel(nuc1.yMom, nuc1.getMass()), vel(nuc1.zMom, nuc1.getMass())};
+	vector<double> v2{vel(nuc2.xMom, nuc2.getMass()), vel(nuc2.yMom, nuc2.getMass()), vel(nuc2.zMom, nuc2.getMass())};
 
 	double u12 = 0.0;
 
@@ -766,13 +784,13 @@ void coll(Particle &nuc1, Particle &nuc2){
 		}
 	}
 
-	nuc1.xMom = nuc1.mass * pow(v1[0], 2) / sqrt(1 - pow(v1[0], 2));
-	nuc1.yMom = nuc1.mass * pow(v1[1], 2) / sqrt(1 - pow(v1[1], 2));
-	nuc1.zMom = nuc1.mass * pow(v1[2], 2) / sqrt(1 - pow(v1[2], 2));
+	nuc1.xMom = nuc1.getMass() * pow(v1[0], 2) / sqrt(1 - pow(v1[0], 2));
+	nuc1.yMom = nuc1.getMass() * pow(v1[1], 2) / sqrt(1 - pow(v1[1], 2));
+	nuc1.zMom = nuc1.getMass() * pow(v1[2], 2) / sqrt(1 - pow(v1[2], 2));
 
-	nuc2.xMom = nuc2.mass * pow(v2[0], 2) / sqrt(1 - pow(v2[0], 2));
-	nuc2.yMom = nuc2.mass * pow(v2[1], 2) / sqrt(1 - pow(v2[1], 2));
-	nuc2.zMom = nuc2.mass * pow(v2[2], 2) / sqrt(1 - pow(v2[2], 2));
+	nuc2.xMom = nuc2.getMass() * pow(v2[0], 2) / sqrt(1 - pow(v2[0], 2));
+	nuc2.yMom = nuc2.getMass() * pow(v2[1], 2) / sqrt(1 - pow(v2[1], 2));
+	nuc2.zMom = nuc2.getMass() * pow(v2[2], 2) / sqrt(1 - pow(v2[2], 2));
 }
 
 void dispLog(int counter, Particle sys[], int time){
@@ -798,11 +816,11 @@ double distance(Particle p1, Particle p2){
 
 double dHalf(Particle p1, Particle p2){
 
-	double mEff = 1 / ((1 / p1.mass) + (1 / p2.mass));
+	double mEff = 1 / ((1 / p1.getMass()) + (1 / p2.getMass()));
 
-	vector<double> v1{vel(p1.xMom, p1.mass), vel(p1.yMom, p1.mass), vel(p1.zMom, p1.mass)};
+	vector<double> v1{vel(p1.xMom, p1.getMass()), vel(p1.yMom, p1.getMass()), vel(p1.zMom, p1.getMass())};
 
-	vector<double> v2{vel(p2.xMom, p2.mass), vel(p2.yMom, p2.mass), vel(p2.zMom, p2.mass)};
+	vector<double> v2{vel(p2.xMom, p2.getMass()), vel(p2.yMom, p2.getMass()), vel(p2.zMom, p2.getMass())};
 
 	vector<double> relV{(v2[0] - v1[0]), (v2[1] - v1[1]), (v2[2] - v1[2])};
 
@@ -894,12 +912,6 @@ double U(int count, Particle set[]){
 	return totalU;
 }
 
-void readout(Particle p){
-	cout << "PID: " << p.PID << endl;
-	cout << "Mass: " << p.mass << " MeV/c^2" << endl;
-	cout << "Position: (" << p.xCord << ", " << p.yCord << ", " << p.zCord << ") fm" << endl;
-	cout << "Momentum: (" << p.xMom << ", " << p.yMom << ", " << p.zMom << ") MeV/c" << endl;
-}
 
 int elChecker(vector<int> v, int x){
 	if(find(v.begin(), v.end(), x) != v.end()){
@@ -942,38 +954,6 @@ int P(Particle p1, Particle p2){
 	}
 }
 
-double searchMass(string PID){
-
-	double mass;
-	string tempPID;
-	string line;
-	int curLine = 0;
-	int searchLine = 0;
-
-	ifstream fin;
-
-	fin.open("iMass.txt");
-
-	while(getline(fin, line)){
-		curLine++;
-		if(line.find(PID, 0) != string::npos){
-			searchLine = curLine;
-		}
-	}
-
-	fin.close();
-
-	fin.open("iMass.txt");
-
-	for(int i = 0; i < searchLine; i++){
-		fin >> tempPID >> mass;
-	}
-
-	fin.close();
-
-
-	return mass;
-}
 
 double framePoly(double x, double c[5]){
 
@@ -983,35 +963,13 @@ double framePoly(double x, double c[5]){
 }
 
 
-int aFinder(Particle p){
-
-	int tens = ((int) p.PID[4]) - ((int) '0');
-	int ones = ((int) p.PID[5]) - ((int) '0');
-
-	int A = tens * 10 + ones;
-
-	return A;
-
-}
-
-int zFinder(Particle p){
-
-	int tens = ((int) p.PID[7]) - ((int) '0');
-	int ones = ((int) p.PID[8]) - ((int) '0');
-
-	int Z = tens * 10 + ones;
-
-	return Z;
-
-}
-
 double Rp(Particle p){
 
-	double A = (double) aFinder(p);
-	double Z = (double) zFinder(p);
+	double A = (double) p.getA();
+	double Z = (double) p.getZ();
 	double I = (A - 2 * Z) / A;
 
-	double BE = (p.mass - A * 931) / 931;
+	double BE = (p.getMass() - A * 931) / 931;
 
 	double Rc = 1.266 * pow(A, (1/3)) + 2.86 * pow(A, (-2/3)) - 1.09 * (I - pow(I, 2)) + 0.99 * BE / A;
 	double delRNP = 0.9 * I - 0.03;
@@ -1023,11 +981,11 @@ double Rp(Particle p){
 
 double Rn(Particle p){
 
-	double A = (double) aFinder(p);
-	double Z = (double) zFinder(p);
+	double A = (double) p.getA();
+	double Z = (double) p.getZ();
 	double I = (A - 2 * Z) / A;
 
-	double BE = (p.mass - A * 931) / 931;
+	double BE = (p.getMass() - A * 931) / 931;
 
 	double Rc = 1.266 * pow(A, (1/3)) + 2.86 * pow(A, (-2/3)) - 1.09 * (I - pow(I, 2)) + 0.99 * BE / A;
 	double delRNP = 0.9 * I - 0.03;
