@@ -639,6 +639,27 @@ vector<Particle> nuColl(Particle projectile, string targetPID){
 		cout << endl;
 	} **/
 
+	int cullingCount = 0;
+	double gammaVel;
+	for (i = 0; i < fragList.size(); i++){
+		gammaVel = sqrt(pow(fragList[i].xMom, 2) + pow(fragList[i].yMom, 2) + pow(fragList[i].zMom, 2)) / fragList[i].getMass();
+
+		if (gammaVel < 0.01){
+			cullingCount++;
+		}
+	}
+
+	while (cullingCount > 0){
+		
+		for (i = 0; i < fragList.size(); i++){
+			gammaVel = sqrt(pow(fragList[i].xMom, 2) + pow(fragList[i].yMom, 2) + pow(fragList[i].zMom, 2)) / fragList[i].getMass();
+			if (gammaVel < 0.01){
+				cullingCount--;
+				fragList.erase(i);
+				break;
+			}
+		}
+	}
 
 	return fragList;
 }
