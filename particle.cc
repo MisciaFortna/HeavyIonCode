@@ -102,6 +102,20 @@ int Particle::getZ(){
 
 }
 
+double Particle::getEnergy(){
+
+	double momRad = sqrt(pow(xMom, 2) + pow(yMom, 2) + pow(zMom, 2));
+
+	double velocity = sqrt(pow(momRad, 2) / (pow(getMass(), 2) + pow(momRad, 2)));
+
+	double correction = momRad / (getMass() * velocity);
+
+	double T = correction * getMass();
+
+	return T;
+
+}
+
 void Particle::readout(){
 	cout << "PID: " << PID << endl;
 	cout << "Mass: " << getMass() << " MeV/c^2" << endl;
